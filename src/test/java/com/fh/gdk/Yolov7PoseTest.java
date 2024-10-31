@@ -10,6 +10,7 @@ import ai.onnxruntime.OrtEnvironment;
 import ai.onnxruntime.OrtException;
 import ai.onnxruntime.OrtSession;
 import com.fh.gdk.ai.util.*;
+import com.fh.gdk.ai.yolo.KeyPoint;
 import org.opencv.core.Mat;
 import org.opencv.core.Point;
 import org.opencv.core.Scalar;

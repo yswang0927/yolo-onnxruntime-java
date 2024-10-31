@@ -75,16 +75,11 @@ public final class ImageUtil {
         bbox[3] = Math.max(0, Math.min(orgH - 1, (bbox[3] - padH) / gain));
     }
 
-    public static void whc2cwh(float[] src, float[] dst, int start) {
-        int j = start;
-        for (int ch = 0; ch < 3; ++ch) {
-            for (int i = ch; i < src.length; i += 3) {
-                dst[j] = src[i];
-                j++;
-            }
-        }
-    }
-
+    /**
+     * 调整 src中的 [宽度,高度,通道] ->[通道,宽度,高度]
+     * @param src 待调整的数组
+     * @return 调整后的结果
+     */
     public static float[] whc2cwh(float[] src) {
         float[] chw = new float[src.length];
         int j = 0;
@@ -95,6 +90,16 @@ public final class ImageUtil {
             }
         }
         return chw;
+    }
+
+    public static void whc2cwh(float[] src, float[] dst, int start) {
+        int j = start;
+        for (int ch = 0; ch < 3; ++ch) {
+            for (int i = ch; i < src.length; i += 3) {
+                dst[j] = src[i];
+                j++;
+            }
+        }
     }
 
     public static byte[] whc2cwh(byte[] src) {

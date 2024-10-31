@@ -2,7 +2,7 @@ package com.fh.gdk;
 
 import java.util.List;
 
-import com.fh.gdk.ai.util.KeyPoint;
+import com.fh.gdk.ai.yolo.KeyPoint;
 
 public class PoseResult {
     public final float[] bbox; // 边界框 [x_min, y_min, x_max, y_max]

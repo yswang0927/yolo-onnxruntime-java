@@ -1,4 +1,4 @@
-package com.fh.gdk.ai.util;
+package com.fh.gdk.ai.yolo;
 
 public class KeyPoint {
     private final Integer id;

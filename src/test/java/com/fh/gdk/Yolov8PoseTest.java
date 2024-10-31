@@ -5,6 +5,8 @@ import java.util.*;
 
 import ai.onnxruntime.*;
 import com.fh.gdk.ai.util.*;
+import com.fh.gdk.ai.yolo.KeyPoint;
+import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.Point;
 import org.opencv.core.Scalar;
@@ -18,7 +20,7 @@ public class Yolov8PoseTest {
     }
 
     public static void main(String[] args) throws OrtException {
-        String model_path = "yolov8s-pose.onnx";
+        String model_path = "yolov8n-pose.onnx";
         // 加载ONNX模型
         OrtEnvironment environment = OrtEnvironment.getEnvironment();
         OrtSession.SessionOptions sessionOptions = new OrtSession.SessionOptions();
@@ -44,8 +46,7 @@ public class Yolov8PoseTest {
 
         // --------- 预处理图片 -------
         // 读取 image
-        Mat img = Imgcodecs.imread("person.jpg");
-        //Imgproc.cvtColor(img, img, Imgproc.COLOR_BGR2RGB);
+        Mat img = Imgcodecs.imread("pose2.jpg");
         Mat image = img.clone();
         Imgproc.cvtColor(image, image, Imgproc.COLOR_BGR2RGB);
 
@@ -66,17 +67,13 @@ public class Yolov8PoseTest {
         int cols = letterbox.getWidth();
         int channels = image.channels();
 
-        // 将Mat对象的像素值赋值给Float[]对象
-        float[] pixels = new float[channels * rows * cols];
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < cols; j++) {
-                double[] pixel = image.get(j, i);
-                for (int k = 0; k < channels; k++) {
-                    // 这样设置相当于同时做了image.transpose((2, 0, 1))操作
-                    pixels[rows * cols * k + j * cols + i] = (float) pixel[k] / 255.0f;
-                }
-            }
-        }
+        // 4. 归一化: 确保图像的RGB值被正确归一化到[0, 1]或[-1, 1]范围
+        image.convertTo(image, CvType.CV_32FC3, 1.0 / 255.0);
+        float[] pixels = new float[(int) (image.total() * image.channels())];
+        image.get(0, 0, pixels);
+
+        // 调整图片中的 [宽度,高度,通道] -> [通道,宽度,高度]
+        pixels = ImageUtil.whc2cwh(pixels);
 
         // 创建OnnxTensor对象
         long[] shape = {1L, (long) channels, (long) rows, (long) cols};
@@ -137,33 +134,16 @@ public class Yolov8PoseTest {
         outputData = transpose(outputData);
         float confThreshold = 0.7f;
 
-        // TODO 下面还是没有能正确解析keypoints
-        Map<Integer, List<float[]>> class2Bbox = new HashMap<>();
-
-        for (float[] bbox : outputData) {
-            float[] conditionalProbabilities = Arrays.copyOfRange(bbox, 4, bbox.length);
-            int label = argmax(conditionalProbabilities);
-            float conf = conditionalProbabilities[label];
-            if (conf < confThreshold) {
-                continue;
+        List<PEResult> peResults = new ArrayList<>();
+        for (float[] outputDatum : outputData) {
+            PEResult result = new PEResult(outputDatum);
+            if (result.getScore() > PEConfig.personScoreThreshold) {
+                peResults.add(result);
             }
-
-            bbox[4] = conf;
-
-            // xywh to (x1, y1, x2, y2)
-            ImageUtil.xywh2xyxy(bbox);
-
-            // skip invalid predictions
-            if (bbox[0] >= bbox[2] || bbox[1] >= bbox[3]) {
-                continue;
-            }
-
-            class2Bbox.putIfAbsent(label, new ArrayList<>());
-            class2Bbox.get(label).add(bbox);
         }
 
         // 对结果进行非极大值抑制
-        List<PEResult> peResults = new ArrayList<>();
+        peResults = NMS.nms(peResults, PEConfig.IoUThreshold);
 
         for (PEResult peResult : peResults) {
             System.out.println(peResult);

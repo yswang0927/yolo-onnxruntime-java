@@ -3,6 +3,8 @@ package com.fh.gdk.ai.util;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fh.gdk.ai.yolo.KeyPoint;
+
 public class PEResult {
     // 框的4个坐标点
     private final Float x0;

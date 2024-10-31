@@ -61,7 +61,7 @@ public class Letterbox {
      */
     public Mat letterbox(Mat im) {
         // 当前形状 [height, width]
-        int[] shape = {im.rows(), im.cols()};
+        int[] shape = { im.rows(), im.cols() };
         // Scale ratio (new / old)
         double r = Math.min(this.newShape.height / shape[0], this.newShape.width / shape[1]);
         // 仅缩小，不扩大（为了mAP）
@@ -98,6 +98,7 @@ public class Letterbox {
         this.ratio = r;
         this.dh = dh;
         this.dw = dw;
+
         return im;
     }
 

@@ -7,7 +7,7 @@
     <version>1.0</version>
     <packaging>jar</packaging>
 
-    <name>test-maven</name>
+    <name>yolo-onnxruntime-java</name>
     <url>http://maven.apache.org</url>
 
     <properties>
