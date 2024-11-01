@@ -149,12 +149,6 @@ public class Yolov8 implements AutoCloseable {
     public List<PosePredictResult> predictPose(Mat inputImg) throws AiException {
         try {
             // 预处理图像
-            // 在这里先定义下线的粗细、关键的半径(按比例设置大小粗细比较好一些)
-            final int minDwDh = Math.min(inputImg.width(), inputImg.height());
-            final int thickness = minDwDh / LINE_THICKNESS_RATIO;
-            final int radius = minDwDh / DOT_RADIUS_RATIO;
-
-
             Mat image = inputImg.clone();
             // 1.转换 BGR -> RGB
             Imgproc.cvtColor(image, image, Imgproc.COLOR_BGR2RGB);
@@ -164,12 +158,12 @@ public class Yolov8 implements AutoCloseable {
             letterbox.setStride(32);
             image = letterbox.letterbox(image);
 
+            // 保存下输入图片预处理后的相关元数据，可以用于自定义绘图
             final double ratio = letterbox.getRatio();
             final double dw = letterbox.getDw();
             final double dh = letterbox.getDh();
             //final int rows = letterbox.getHeight();
             //final int cols = letterbox.getWidth();
-
             ImageMetaData imgMetaData = new ImageMetaData();
             imgMetaData.setDw(dw);
             imgMetaData.setDh(dh);
@@ -224,73 +218,6 @@ public class Yolov8 implements AutoCloseable {
 
             // 对结果进行非极大值抑制：从剩下的一组存在重叠的边界框中选择最佳的边界框
             poseResults = nms(poseResults, this.iouThreshold);
-
-            // 测试绘图
-            for (PosePredictResult posResult : poseResults) {
-                // 画边界框
-                Point topLeft = new Point((posResult.getX0() - dw) / ratio, (posResult.getY0() - dh) / ratio);
-                Point bottomRight = new Point((posResult.getX1() - dw) / ratio, (posResult.getY1() - dh) / ratio);
-                Imgproc.rectangle(inputImg, topLeft, bottomRight, new Scalar(255, 0, 0), thickness);
-
-                // 画关键点
-                String[] spine_names = { "T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12", "L1", "L2", "L3", "L4", "L5" };
-                // 椎骨索引号
-                int vertebraIndex = 0;
-
-                float[][] keypoints = posResult.keypoints;
-                float[] kp;
-                for (int p = 0; p < keypoints.length; p++) {
-                    kp = keypoints[p];
-
-                    Point center = new Point((kp[0] - dw) / ratio, (kp[1] - dh) / ratio);
-                    Scalar color = new Scalar( 255, 0, 0 );
-                    Imgproc.circle(inputImg, center, radius, color, -1); //-1表示实心
-
-                    // 每一节椎骨（每节椎骨4个关键点）
-                    if (p % 4 == 0) {
-                        vertebraIndex++;
-
-                        Point bp1 = new Point((kp[0] - dw) / ratio, (kp[1] - dh) / ratio);
-                        Point bp2 = new Point((keypoints[p + 3][0] - dw) / ratio, (keypoints[p + 3][1] - dh) / ratio);
-                        //Imgproc.rectangle(inputImg, bp1, bp2, new Scalar(255, 255, 0), 2);
-
-                        // Z字形连接 0-1-2-3 每节上的4个点
-                        Point[] vertePoints = new Point[4];
-                        for (int j = 0; j < 4; j++) {
-                            vertePoints[j] = new Point((keypoints[p + j][0] - dw) / ratio, (keypoints[p + j][1] - dh) / ratio);
-                        }
-                        MatOfPoint matOfPoint = new MatOfPoint(vertePoints);
-                        Imgproc.polylines(inputImg, Arrays.asList(matOfPoint), false, new Scalar(0, 255, 0), 2);
-
-                        // 绘制椎骨名称
-                        Imgproc.putText(inputImg, spine_names[vertebraIndex-1], new Point((bp1.x + bp2.x)/2 - 10, (bp1.y + bp2.y)/2 + 10), Imgproc.FONT_HERSHEY_SIMPLEX, 0.6, color, 2);
-
-                        // 计算每个椎骨的上斜率和下斜率
-
-                    }
-
-                }
-
-                // 画线
-                /*for (int i = 0; i < PEConfig.skeleton.length; i++) {
-                    int indexPoint1 = PEConfig.skeleton[i][0] - 1;
-                    int indexPoint2 = PEConfig.skeleton[i][1] - 1;
-                    Scalar coler = PEConfig.poseLimbColor.get(i);
-                    Point point1 = new Point(
-                            (keypoints[indexPoint1][0] - dw) / ratio,
-                            (keypoints[indexPoint1][1] - dh) / ratio
-                    );
-                    Point point2 = new Point(
-                            (keypoints[indexPoint2][0] - dw) / ratio,
-                            (keypoints[indexPoint2][1] - dh) / ratio
-                    );
-                    Imgproc.line(inputImg, point1, point2, coler, thickness);
-                }*/
-            }
-            // 保存图像
-            Imgproc.cvtColor(inputImg, inputImg, Imgproc.COLOR_RGB2BGR);
-            Imgcodecs.imwrite("test_out.jpg", inputImg);
-
             return poseResults;
         } catch (Exception e) {
             throw new AiException(e);
