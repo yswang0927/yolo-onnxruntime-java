@@ -167,10 +167,15 @@ public class Yolov8 implements AutoCloseable {
             final double ratio = letterbox.getRatio();
             final double dw = letterbox.getDw();
             final double dh = letterbox.getDh();
-            final int rows = letterbox.getHeight();
-            final int cols = letterbox.getWidth();
+            //final int rows = letterbox.getHeight();
+            //final int cols = letterbox.getWidth();
 
-            ImageMetaData imgMetaData = new ImageMetaData(dw, dh, ratio);
+            ImageMetaData imgMetaData = new ImageMetaData();
+            imgMetaData.setDw(dw);
+            imgMetaData.setDh(dh);
+            imgMetaData.setRatio(ratio);
+            imgMetaData.setSrcWith(inputImg.width());
+            imgMetaData.setSrcHeight(inputImg.height());
 
             // 创建输入 OnnxTensor 对象
             OnnxTensor inputTensor;
@@ -282,7 +287,6 @@ public class Yolov8 implements AutoCloseable {
                     Imgproc.line(inputImg, point1, point2, coler, thickness);
                 }*/
             }
-
             // 保存图像
             Imgproc.cvtColor(inputImg, inputImg, Imgproc.COLOR_RGB2BGR);
             Imgcodecs.imwrite("test_out.jpg", inputImg);

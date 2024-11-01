@@ -18,7 +18,7 @@ public class PosePredictResult {
 
     private ImageMetaData imageMetaData;
 
-    PosePredictResult(float[] tensorResult, int classId) {
+    public PosePredictResult(float[] tensorResult, int classId) {
         // 前5个值含义：[box中心点x, box中心点y, box宽度, box高度，置信度分数]
         float cx = tensorResult[0];
         float cy = tensorResult[1];
