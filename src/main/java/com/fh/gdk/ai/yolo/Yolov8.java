@@ -24,7 +24,7 @@ public class Yolov8 implements AutoCloseable {
     public static final float IOU_THRESHOLD_DEFAULT = 0.5f;
 
     // 根据图像大小按比例控制点大小及线粗
-    public static final Integer DOT_RADIUS_RATIO = 168;
+    public static final Integer DOT_RADIUS_RATIO = 268;
     public static final Integer LINE_THICKNESS_RATIO = 333;
 
     protected final OrtEnvironment env;

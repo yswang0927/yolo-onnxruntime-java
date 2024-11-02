@@ -77,4 +77,15 @@ public class SpineUtils {
         return angle;
     }
 
+    /**
+     * 计算矩形内2点连线和矩形两边的交点，用于绘制延长线段
+     */
+    public static double[][] createLongLine(double x1, double y1, double x2, double y2, double imageWidth) {
+        double m = lineSlope(x1, y1, x2, y2);
+        double nx1 = 20, nx2 = imageWidth - 20;
+        double ny1 = y1 - m * (x1 - nx1);
+        double ny2 = y2 + m * (nx2 - x2);
+        return new double[][] { {nx1, ny1}, {nx2, ny2} };
+    }
+
 }
