@@ -1,0 +1,7 @@
+To identify and monitor scoliosis, it is crucial to identify relevant parameters on the spine and conduct several measurements, such as the Cobb angle and the coronal balance. However, it is a challenging task for inexperienced observers. Variability in measurements, often caused by incorrect end vertebral definitions and diurnal fluctuations, further complicates the process. The manual method requires expertise, consumes time, and raises costs, placing added strain on the medical workforce. Organizational constraints also impede timely second reads, diminishing the advantages of double reads in clinical practice.
+为了识别和监测脊柱侧弯，识别脊柱的相关参数并进行多项测量（例如科布角和冠状平衡）至关重要。然而，对于缺乏经验的观察者来说，这是一项具有挑战性的任务。测量结果的变异性通常是由不正确的终椎定义和昼夜波动引起的，这使得该过程进一步复杂化。手动方法需要专业知识，耗时且增加成本，给医务人员带来了额外的压力。组织限制也会阻碍及时的第二次读取，从而削弱了临床实践中双重读取的优势。
+
+IB Lab SQUIRREL™ significantly enhances the reliability and precision of Cobb angle measurements. The software streamlines the assessment, improves efficiency, and indirectly benefits the radiological workflow. Furthermore, it provides additional expert insights without the need for extra resources and reduces intra-rater variability, resulting in more consistent radiological assessments.
+IB Lab SQUIRREL™显着提高了科布角测量的可靠性和精度。该软件简化了评估，提高了效率，并间接有利于放射工作流程。此外，它无需额外资源即可提供额外的专家见解，并减少评估者内部的变异性，从而实现更一致的放射学评估。
+
+

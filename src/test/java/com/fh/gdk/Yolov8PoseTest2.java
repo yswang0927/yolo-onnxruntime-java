@@ -15,6 +15,7 @@ public class Yolov8PoseTest2 {
     public static void spineCobbPredict() {
         String modelPath = "yolov8-spine-pose.onnx";
         String image = "spine2.jpg";
+        //image = "spine-docs/test-imgs/t17.jpg";
 
         SpineYolov8 spiner = new SpineYolov8(modelPath);
         spiner.predictSpine(image);

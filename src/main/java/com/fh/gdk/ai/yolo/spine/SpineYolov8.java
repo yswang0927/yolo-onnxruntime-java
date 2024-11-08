@@ -1,8 +1,6 @@
 package com.fh.gdk.ai.yolo.spine;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 import com.fh.gdk.ai.AiException;
 import com.fh.gdk.ai.yolo.ImageMetaData;
@@ -27,10 +25,9 @@ public class SpineYolov8 extends Yolov8 {
 
     public void predictSpine(String imagePath) {
         List<PosePredictResult> posePredictResults = this.predictPose(imagePath);
-        // TODO 处理通用的姿态结果为spine结果
         // 脊柱X-Ray影像上只会有一个
         PosePredictResult posResult = posePredictResults.get(0);
-        // 边界框
+        // 边界框 [x_min, y_min, x_max, y_max]
         float[] bbox = posResult.bbox;
         // 关键点，应该是：68 个点(17节椎骨 * 4个角顶点)
         // [68][x,y,conf]
@@ -42,7 +39,125 @@ public class SpineYolov8 extends Yolov8 {
 
         // 图片元数据
         ImageMetaData imgMetaData = posResult.getImageMetaData();
+        final double dw = imgMetaData.getDw();
+        final double dh = imgMetaData.getDh();
+        final double ratio = imgMetaData.getRatio();
 
+        // 将tensor点位转换为用于绘图的UI点位
+        // 矩形区域坐标
+        double[] uiBboxCoord = {
+                (bbox[0] - dw) / ratio, (bbox[1] - dh) / ratio,
+                (bbox[2] - dw) / ratio, (bbox[3] - dh) / ratio
+        };
+
+        Spine spine = new Spine(uiBboxCoord);
+
+        // 17节椎骨的四个边角坐标: [[lft_top_x, lft_top_y, rgt_top_x, rgt_top.y, lft_btm_x, lft_btm_y, rgt_btm_x, rgt_btm_y], ]
+        List<Vertebrae> vertebraes = new ArrayList<>(24);
+        // 椎骨索引号
+        int vertebraIndex = 0;
+        for (int p = 0; p < keypoints.length; p += 4) {
+            double[] cornerPoints = {
+                    (keypoints[p][0] - dw) / ratio, (keypoints[p][1] - dh) / ratio,
+                    (keypoints[p + 1][0] - dw) / ratio, (keypoints[p + 1][1] - dh) / ratio,
+                    (keypoints[p + 2][0] - dw) / ratio, (keypoints[p + 2][1] - dh) / ratio,
+                    (keypoints[p + 3][0] - dw) / ratio, (keypoints[p + 3][1] - dh) / ratio
+            };
+            vertebraes.add(new Vertebrae(cornerPoints).setLabel(Spine.VERTEBRAE_NAMES[vertebraIndex]));
+            vertebraIndex++;
+        }
+
+        spine.setVertebraes(vertebraes);
+
+
+        final int vertesCount = vertebraes.size();
+
+        // 参照 coronal_plane_cobb.py 计算
+        /*List<Map<String, Object>> vertebrae_information = new ArrayList<>();
+        for (int i = 0; i < vertesCount; i++) {
+            // 判断定点01的位置，是横着的还是竖着的
+            Vertebrae verte = vertebraes.get(i);
+            // 0 1
+            // 3 2
+            double[][] box = verte.getCornerPoints();
+
+            double[] point0 = {box[0][0], box[0][1]};
+            double[] point1 = {box[1][0], box[1][1]};
+            double[] point2 = {box[2][0], box[2][1]};
+            double distance_01 = Math.sqrt(Math.pow(point0[0] - point1[0], 2) + Math.pow(point0[1] - point1[1], 2));
+            double distance_12 =  Math.sqrt(Math.pow(point1[0] - point2[0], 2) +  Math.pow(point1[1] - point2[1], 2));
+
+            double[] center = {
+                    (point0[0] + point1[0]) / 2,
+                    (point1[1] + point2[1]) / 2
+            };
+            if (distance_01 > distance_12) {
+                // up_slope = (box[3][1] - box[2][1]) / (box[3][0] - box[2][0])
+                // down_slope = (box[0][1] - box[1][1]) / (box[0][0] - box[1][0])
+                double up_slope = SpineUtils.lineSlope(box[2][0], box[2][1], box[3][0], box[3][1]);
+                double down_slope = SpineUtils.lineSlope(box[1][0], box[1][1], box[0][0], box[0][1]);
+                Map<String, Object> info = new HashMap<>();
+                info.put("index", i);
+                info.put("location", true);
+                info.put("vertexes", box);
+                info.put("center", center);
+                info.put("up_slope", up_slope);
+                info.put("down_slope", down_slope);
+
+                vertebrae_information.add(info);
+            }
+            else {
+                // up_slope = (box[2][1] - box[1][1]) / (box[2][0] - box[1][0])
+                // down_slope = (box[3][1] - box[0][1]) / (box[3][0] - box[0][0])
+                double up_slope = SpineUtils.lineSlope(box[1][0], box[1][1], box[2][0], box[2][1]);
+                double down_slope = SpineUtils.lineSlope(box[0][0], box[0][1], box[3][0], box[3][1]);
+                Map<String, Object> info = new HashMap<>();
+                info.put("index", i);
+                info.put("location", false);
+                info.put("vertexes", box);
+                info.put("center", center);
+                info.put("up_slope", up_slope);
+                info.put("down_slope", down_slope);
+
+                vertebrae_information.add(info);
+            }
+
+        }
+
+        // 找出拐点
+        double[] flag_index = {-1, -1};
+        List<Map<String, Object>> turning_location = new ArrayList<>();
+        for (int i = 0; i < vertesCount; i++) {
+            if (i + 1 < vertesCount) {
+                boolean location1 = (boolean) vertebrae_information.get(i).get("location");
+                boolean location2 = (boolean) vertebrae_information.get(i+1).get("location");
+                if (!location1 && location2) {
+                    if (flag_index[1] != i) {
+                        flag_index = new double[]{ i, i + 1 };
+                        Map<String, Object> turning_index = new HashMap<>();
+                        turning_index.put("previous", i);
+                        turning_index.put("last", i + 1);
+                        turning_location.add(turning_index);
+                    }
+                }
+                if (location1 && !location2) {
+                    if (flag_index[1] != i) {
+                        flag_index = new double[]{ i, i + 1 };
+                        Map<String, Object> turning_index = new HashMap<>();
+                        turning_index.put("previous", i);
+                        turning_index.put("last", i + 1);
+                        turning_location.add(turning_index);
+                    }
+                }
+            }
+        }
+
+        // 找出上下端锥绝对值最大的椎骨
+        // 并计算最大cobb角
+        List<Map<String, Object>> slope_decline = new ArrayList<>(vertebrae_information);
+        slope_decline.sort((a, b) -> {
+            return Double.compare((double)b.get("up_slope"), (double)a.get("up_slope"));
+        });*/
 
         // ================================================================================
         // 测试绘图
@@ -50,66 +165,52 @@ public class SpineYolov8 extends Yolov8 {
         int minDwDh = Math.min(imgMetaData.getSrcWith(), imgMetaData.getSrcHeight());
         int thickness = minDwDh / LINE_THICKNESS_RATIO;
         int radius = minDwDh / DOT_RADIUS_RATIO;
-        double dw = imgMetaData.getDw();
-        double dh = imgMetaData.getDh();
-        double ratio = imgMetaData.getRatio();
+
         Mat inputImg = Imgcodecs.imread(imagePath);
 
         // 画边界框
         // 颜色 Scalar(Blue, Green, Red) BGR格式
-        Point topLeft = new Point((posResult.getX0() - dw) / ratio, (posResult.getY0() - dh) / ratio);
-        Point bottomRight = new Point((posResult.getX1() - dw) / ratio, (posResult.getY1() - dh) / ratio);
-        Imgproc.rectangle(inputImg, topLeft, bottomRight, new Scalar(255, 0, 0), 2);
+        Imgproc.rectangle(inputImg, new Point(uiBboxCoord[0], uiBboxCoord[1]), new Point(uiBboxCoord[2], uiBboxCoord[3]), new Scalar(0,0,255), 2);
 
-        // 椎骨索引号
-        int vertebraIndex = 0;
+        List<Double> allX = new ArrayList<>();
+        List<Double> allY = new ArrayList<>();
+        for (int v = 0; v < vertesCount; v++) {
+            Vertebrae vert = vertebraes.get(v);
+            System.out.println(vert);
+            // 绘制68个关键点，每块椎骨4个关键点
+            Imgproc.circle(inputImg, new Point(vert.getLeftTopPoint()), radius, new Scalar( 255, 0, 0 ), -1); //-1表示实心
+            Imgproc.circle(inputImg, new Point(vert.getRightTopPoint()), radius, new Scalar( 255, 0, 0 ), -1);
+            Imgproc.circle(inputImg, new Point(vert.getLeftBottomPoint()), radius, new Scalar( 255, 0, 0 ), -1);
+            Imgproc.circle(inputImg, new Point(vert.getRightBottomPoint()), radius, new Scalar( 255, 0, 0 ), -1);
+            
+            // 连接四个点，顺时针绘制矩形
+            // 0 1
+            // 3 2
+            Point[] boxPoints = new Point[4];
+            boxPoints[0] = new Point(vert.getLeftTopPoint());
+            boxPoints[1] = new Point(vert.getRightTopPoint());
+            boxPoints[2] = new Point(vert.getRightBottomPoint());
+            boxPoints[3] = new Point(vert.getLeftBottomPoint());
+            Imgproc.polylines(inputImg, Arrays.asList(new MatOfPoint(boxPoints)), true, new Scalar(0, 255, 0));
+            // 绘制椎骨名称
+            Point vertMidPoint = new Point(vert.getCenterPoint());
+            Imgproc.putText(inputImg, vert.getLabel(), vertMidPoint, Imgproc.FONT_HERSHEY_SIMPLEX, 0.6, new Scalar(255, 0, 0), 2);
+            Imgproc.circle(inputImg, vertMidPoint, radius + 2, new Scalar(0, 255, 0), -1);
 
-        float[] kp;
-        double[] test_x = new double[68];
-        double[] test_y = new double[68];
-        for (int p = 0; p < keypoints.length; p++) {
-            kp = keypoints[p];
+            allX.add(boxPoints[0].x);
+            allX.add(boxPoints[1].x);
+            allX.add(boxPoints[3].x);
+            allX.add(boxPoints[2].x);
 
-            Point center = new Point((kp[0] - dw) / ratio, (kp[1] - dh) / ratio);
-            Scalar color = new Scalar( 255, 0, 0 );
-            Imgproc.circle(inputImg, center, radius, color, -1); //-1表示实心
-
-            test_x[p] = center.x;
-            test_y[p] = center.y;
-            System.out.println(String.format("第 %d 个关键点：(%f, %f)", p+1, center.x, center.y));
-
-            // 每一节椎骨（每节椎骨4个关键点）
-            if (p % 4 == 0) {
-                vertebraIndex++;
-
-                Point bp1 = new Point((kp[0] - dw) / ratio, (kp[1] - dh) / ratio);
-                Point bp2 = new Point((keypoints[p + 3][0] - dw) / ratio, (keypoints[p + 3][1] - dh) / ratio);
-                //Imgproc.rectangle(inputImg, bp1, bp2, new Scalar(255, 255, 0), 2);
-
-                // Z字形连接 0-1-2-3 每节上的4个点
-                // 0 1
-                // 2 3
-                Point[] vertePoints = new Point[4];
-                for (int j = 0; j < 4; j++) {
-                    vertePoints[j] = new Point((keypoints[p + j][0] - dw) / ratio, (keypoints[p + j][1] - dh) / ratio);
-                }
-                // 划Z线
-                //MatOfPoint matOfPoint = new MatOfPoint(vertePoints);
-                //Imgproc.polylines(inputImg, Arrays.asList(matOfPoint), false, new Scalar(0, 255, 0), 2);
-                // 填充多边形
-                Point temp = vertePoints[2];
-                vertePoints[2] = vertePoints[3];
-                vertePoints[3] = temp;
-                MatOfPoint matOfPoint = new MatOfPoint(vertePoints);
-                Imgproc.polylines(inputImg, Arrays.asList(matOfPoint), true, new Scalar(255, 235, 0, 50));
-
-
-                // 绘制椎骨名称
-                Imgproc.putText(inputImg, Spine.VERTEBRAE_NAMES[vertebraIndex-1], new Point((bp1.x + bp2.x)/2 - 10, (bp1.y + bp2.y)/2 + 10), Imgproc.FONT_HERSHEY_SIMPLEX, 0.6, color, 2);
-
-                // 计算每个椎骨的上斜率和下斜率
-            }
+            allY.add(boxPoints[0].y);
+            allY.add(boxPoints[1].y);
+            allY.add(boxPoints[3].y);
+            allY.add(boxPoints[2].y);
         }
+
+        allX.addAll(allY);
+        System.out.println(allX);
+
 
         // 测试绘制cobb角度线，spine2.jpg的测试数据
         double[][][] midLines = {
@@ -132,17 +233,11 @@ public class SpineYolov8 extends Yolov8 {
                 {{494, 1767}, {654, 1741}}
         } ;
 
-        for (double[][] mp : midLines) {
-            Point p1 = new Point(mp[0]);
-            Point p2 = new Point(mp[1]);
-            Imgproc.line(inputImg, p1, p2, new Scalar(0, 255, 0), 2);
-        }
-
         double[] pt = {27.5, 4, 10};
         double[] mt = {29.6, 10, 15};
         double[] tl = {5.2, 15, 15};
 
-        double[][] cobbAngles = {pt, mt, tl};
+        double[][] cobbAngles = {pt, mt};
         Scalar[] colors = {new Scalar(0, 255, 255), new Scalar(255, 0, 255), new Scalar(0, 0, 255)};
         int c = 0;
         for (double[] cobb : cobbAngles) {
@@ -152,16 +247,23 @@ public class SpineYolov8 extends Yolov8 {
             int line1 = (int) cobb[1];
             int line2 = (int) cobb[2];
 
+            //Point[] vert1Points = vertebraUIPoints.get(line1);
+            //Point[] vert2Points = vertebraUIPoints.get(line2);
+
             // 绘制夹角线
             double[][] topLine = SpineUtils.createLongLine(midLines[line1][0][0], midLines[line1][0][1], midLines[line1][1][0], midLines[line1][1][1], imgMetaData.getSrcWith());
+            //double[][] topLine = SpineUtils.createLongLine(vert1Points[0].x, vert1Points[0].y, vert1Points[1].x, vert1Points[1].y, imgMetaData.getSrcWith());
             Point tp1 = new Point(topLine[0]);
             Point tp2 = new Point(topLine[1]);
             Imgproc.line(inputImg, tp1, tp2, colors[c], 3);
 
             double[][] bottomLine = SpineUtils.createLongLine(midLines[line2][0][0], midLines[line2][0][1], midLines[line2][1][0], midLines[line2][1][1], imgMetaData.getSrcWith());
+            //double[][] bottomLine = SpineUtils.createLongLine(vert2Points[2].x, vert2Points[2].y, vert2Points[3].x, vert2Points[3].y, imgMetaData.getSrcWith());
             Point bp1 = new Point(bottomLine[0]);
             Point bp2 = new Point(bottomLine[1]);
             Imgproc.line(inputImg, bp1, bp2, colors[c], 3);
+
+            //System.out.println("夹角： "+ SpineUtils.getDegress(vert1Points[0].x, vert1Points[0].y, vert1Points[1].x, vert1Points[1].y,vert2Points[3].x, vert2Points[3].y, vert2Points[2].x, vert2Points[2].y));
 
             // 绘制角度文本
             // 判断文本是在脊柱左侧？还是右侧？根据上下线的夹角是在左边还是右边
@@ -186,8 +288,6 @@ public class SpineYolov8 extends Yolov8 {
         Imgproc.cvtColor(inputImg, inputImg, Imgproc.COLOR_RGB2BGR);
         Imgcodecs.imwrite("test_out_spine_cobb.jpg", inputImg);
 
-        System.out.println(Arrays.toString(test_x));
-        System.out.println(Arrays.toString(test_y));
 
     }
 
