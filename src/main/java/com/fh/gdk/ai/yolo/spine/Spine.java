@@ -35,25 +35,42 @@ public class Spine {
 
     public void setVertebraes(List<Vertebrae> vertebraes) {
         this.vertebraes = vertebraes;
-        this.determineSpineShapeAndRegions();
+        this.determineSpineCurveTypeAndInflectionVert();
         //a();
     }
 
-    private void determineSpineShapeAndRegions() {
-        List<Integer> directionChanges = new ArrayList<>();
-        for (int i = 1; i < this.vertebraes.size(); i++) {
-            if ((this.vertebraes.get(i).getAngle() > 0 && this.vertebraes.get(i-1).getAngle() < 0)
-                || (this.vertebraes.get(i).getAngle() < 0 && this.vertebraes.get(i-1).getAngle() > 0)
-            ) {
-                directionChanges.add(i);
+    /**
+     * 根据17节椎骨的倾斜度判断侧弯类型和拐点椎骨（脊柱弯曲方向发生变化的椎骨称为拐点椎骨）
+     */
+    private void determineSpineCurveTypeAndInflectionVert() {
+        List<Integer> inflectionVertebraes = new ArrayList<>();
+        for (int i = 1; i < this.vertebraes.size() - 1; i++) {
+            double prevSlopeAngle = this.vertebraes.get(i-1).getSlopeAngle();
+            double currSlopeAngle = this.vertebraes.get(i).getSlopeAngle();
+            double nextSlopeAngle = this.vertebraes.get(i+1).getSlopeAngle();
+            if ((currSlopeAngle > prevSlopeAngle && currSlopeAngle > nextSlopeAngle) ||
+                    (currSlopeAngle < prevSlopeAngle && currSlopeAngle < nextSlopeAngle)) {
+                inflectionVertebraes.add(i);
+                System.out.println("拐点椎骨A："+ this.vertebraes.get(i).getLabel());
             }
         }
 
-        if (directionChanges.size() >= 2) {
+        for (int i = 1; i < this.vertebraes.size(); i++) {
+            double prevSlopeAngle = this.vertebraes.get(i-1).getSlopeAngle();
+            double currSlopeAngle = this.vertebraes.get(i).getSlopeAngle();
+            if ((currSlopeAngle > 0 && prevSlopeAngle < 0)
+                    || (currSlopeAngle < 0 && prevSlopeAngle > 0)
+            ) {
+                System.out.println("拐点椎骨B："+ this.vertebraes.get(i).getLabel());
+            }
+        }
+
+        if (inflectionVertebraes.size() >= 2) {
             this.curveType = "S";
-            this.ptRegion = new int[]{0, directionChanges.get(0)};
-            this.mtRegion = new int[]{directionChanges.get(0), directionChanges.get(1)};
-            this.tlRegion = new int[]{directionChanges.get(1), 17 };
+
+            //this.ptRegion = new int[]{0, directionChanges.get(0)};
+            //this.mtRegion = new int[]{directionChanges.get(0), directionChanges.get(1)};
+            //this.tlRegion = new int[]{directionChanges.get(1), 17 };
         } else {
             this.curveType = "C";
         }

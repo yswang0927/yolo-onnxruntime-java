@@ -19,8 +19,8 @@ public class Vertebrae {
     // 椎骨的中心点坐标（最小外接矩形的中心点）
     private double[] centerPoint;
 
-    // 倾斜角度
-    private double angle;
+    // 椎骨平均倾斜角度
+    private double slopeAngle;
 
     Vertebrae(double[] cornerPoints) {
         this.cornerPoints = cornerPoints;
@@ -52,14 +52,14 @@ public class Vertebrae {
 
         //System.out.println(String.format("{%.2f, %.2f}", this.centerPoint[0], this.centerPoint[1]));
 
-        this.angle = this.calcAngle();
+        this.slopeAngle = this.calcSlopeAngle();
     }
 
     /**
      * 计算椎骨的平均倾斜角度：上边缘和下边缘的倾斜角度
      * @return
      */
-    private double calcAngle() {
+    private double calcSlopeAngle() {
         double upSlope = SpineUtils.lineSlope(this.cornerPoints[0], this.cornerPoints[1], this.cornerPoints[2], this.cornerPoints[3]);
         double dwnSlope = SpineUtils.lineSlope(this.cornerPoints[4], this.cornerPoints[5], this.cornerPoints[6], this.cornerPoints[7]);
         double upAngle = Math.toDegrees(Math.atan(upSlope));
@@ -95,8 +95,8 @@ public class Vertebrae {
         return this.centerPoint;
     }
 
-    public double getAngle() {
-        return angle;
+    public double getSlopeAngle() {
+        return this.slopeAngle;
     }
 
     public double[] getLeftTopPoint() {
@@ -127,7 +127,7 @@ public class Vertebrae {
     public String toString() {
         return "Vertebrae {" +
                 "label='" + label + '\'' +
-                ", angle=" + String.format("%.2f°", angle) +
+                ", angle=" + String.format("%.2f", this.getSlopeAngle()) +
                 '}';
     }
 }
